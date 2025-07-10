@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MSN에서 광고 찾기
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      1.1
 // @description  Detect and highlight ad providers on MSN Korea
 // @author       sungcheol-dable
 // @match        https://www.msn.com/ko-kr
