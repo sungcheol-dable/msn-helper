@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         MSN Korea Ad Provider Detector
+// @name         MSN에서 광고 찾기
 // @namespace    http://tampermonkey.net/
 // @version      1.0
 // @description  Detect and highlight ad providers on MSN Korea
