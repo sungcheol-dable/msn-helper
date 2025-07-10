@@ -6,8 +6,8 @@
 // @author       sungcheol-dable
 // @match        https://www.msn.com/ko-kr
 // @match        https://www.msn.com/ko-kr/
-// @updateURL    https://cdn.jsdelivr.net/gh/sungcheol-dable/msn-helper@latest/msn-ad-detector.user.js
-// @downloadURL  https://cdn.jsdelivr.net/gh/sungcheol-dable/msn-helper@latest/msn-ad-detector.user.js
-// @require      https://cdn.jsdelivr.net/gh/sungcheol-dable/msn-helper@latest/main.js
+// @updateURL    https://cdn.jsdelivr.net/gh/sungcheol-dable/msn-ad-detector@latest/msn-ad-detector.user.js
+// @downloadURL  https://cdn.jsdelivr.net/gh/sungcheol-dable/msn-ad-detector@latest/msn-ad-detector.user.js
+// @require      https://cdn.jsdelivr.net/gh/sungcheol-dable/msn-ad-detector@latest/main.js
 // @grant        none
 // ==/UserScript==
