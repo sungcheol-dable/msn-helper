@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         MSN에서 광고 찾기
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.6
 // @description  Detect and highlight ad providers on MSN Korea
 // @author       sungcheol-dable
-// @match        https://www.msn.com/ko-kr
+// @match        https://www.msn.com/ko-kr*
+// @match        https://*.msn.com/ko-kr*
 // @match        https://www.msn.com/ko-kr/
+// @match        https://www.msn.com/ko-kr
 // @updateURL    https://cdn.jsdelivr.net/gh/sungcheol-dable/msn-helper@latest/msn-ad-detector.user.js
 // @downloadURL  https://cdn.jsdelivr.net/gh/sungcheol-dable/msn-helper@latest/msn-ad-detector.user.js
 // @grant        none
@@ -13,6 +15,8 @@
 
 (function() {
     'use strict';
+    
+    console.log('🔍 MSN Ad Detector v1.6 - Script loaded!');
 
     // ===== STATE MANAGEMENT =====
     let isScanning = false;
@@ -414,7 +418,11 @@
 
     // ===== INITIALIZATION =====
     function initialize() {
+        console.log('🔍 MSN Ad Detector - Initializing...');
+        console.log('🔍 Current URL:', window.location.href);
+        console.log('🔍 Document ready state:', document.readyState);
         createScanButton();
+        console.log('🔍 MSN Ad Detector - Initialization complete!');
     }
 
     // ===== ENTRY POINT =====
