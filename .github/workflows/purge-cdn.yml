@@ -17,8 +17,8 @@ jobs:
       run: |
         echo "Purging jsDelivr CDN cache for msn-ad-detector.user.js..."
         
-        # Purge specific file
-        response=$(curl -w "%{http_code}" -s -o /dev/null -X POST \
+        # Purge specific file using GET request
+        response=$(curl -w "%{http_code}" -s -o /dev/null \
           "https://purge.jsdelivr.net/gh/${{ github.repository }}@latest/msn-ad-detector.user.js")
         
         if [ "$response" = "200" ]; then
@@ -27,8 +27,8 @@ jobs:
           echo "❌ Failed to purge msn-ad-detector.user.js (HTTP $response)"
         fi
         
-        # Purge entire repository cache
-        response=$(curl -w "%{http_code}" -s -o /dev/null -X POST \
+        # Purge entire repository cache using GET request
+        response=$(curl -w "%{http_code}" -s -o /dev/null \
           "https://purge.jsdelivr.net/gh/${{ github.repository }}@latest")
         
         if [ "$response" = "200" ]; then
