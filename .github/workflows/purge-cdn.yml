@@ -1,0 +1,48 @@
+name: Purge jsDelivr CDN
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    types: [ closed ]
+
+jobs:
+  purge-cdn:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Purge jsDelivr CDN Cache
+      run: |
+        echo "Purging jsDelivr CDN cache for msn-ad-detector.user.js..."
+        
+        # Purge specific file
+        response=$(curl -w "%{http_code}" -s -o /dev/null -X POST \
+          "https://purge.jsdelivr.net/gh/${{ github.repository }}@latest/msn-ad-detector.user.js")
+        
+        if [ "$response" = "200" ]; then
+          echo "✅ Successfully purged msn-ad-detector.user.js"
+        else
+          echo "❌ Failed to purge msn-ad-detector.user.js (HTTP $response)"
+        fi
+        
+        # Purge entire repository cache
+        response=$(curl -w "%{http_code}" -s -o /dev/null -X POST \
+          "https://purge.jsdelivr.net/gh/${{ github.repository }}@latest")
+        
+        if [ "$response" = "200" ]; then
+          echo "✅ Successfully purged repository cache"
+        else
+          echo "❌ Failed to purge repository cache (HTTP $response)"
+        fi
+        
+        echo "CDN cache purge completed"
+        
+    - name: Verify CDN Update
+      run: |
+        echo "Waiting 10 seconds for CDN to update..."
+        sleep 10
+        
+        echo "Checking CDN headers..."
+        curl -I "https://cdn.jsdelivr.net/gh/${{ github.repository }}@latest/msn-ad-detector.user.js" || true
