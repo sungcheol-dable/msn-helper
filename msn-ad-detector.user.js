@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MSN에서 광고 찾기
 // @namespace    http://tampermonkey.net/
-// @version      1.7
+// @version      1.8
 // @description  Detect and highlight ad providers on MSN Korea
 // @author       sungcheol-dable
 // @match        https://www.msn.com/ko-kr*
@@ -16,10 +16,11 @@
 (function() {
     'use strict';
     
-    console.log('🔍 MSN Ad Detector v1.7 - Script loaded!');
+    console.log('🔍 MSN Ad Detector v1.8 - Script loaded!');
 
     // ===== STATE MANAGEMENT =====
     let isScanning = false;
+    const adCostData = new Map(); // Store ad cost information
 
     // ===== UI COMPONENTS =====
     function createScanButton() {
@@ -293,7 +294,7 @@
                 background: rgba(255, 20, 147, 0.05) !important;
             }
             .${uniqueClass}::before {
-                content: "🚫 광고" !important;
+                content: "💰 광고" !important;
                 position: absolute !important;
                 top: -2px !important;
                 left: -2px !important;
@@ -406,6 +407,103 @@
     function scanForAds(context, contextName = '') {
         scanShadowDOM(context, contextName);
         scanWithSelectors(context, contextName);
+        scanAdLabels(context, contextName);
+    }
+    
+    function scanAdLabels(context, contextName) {
+        // Find elements with ad-label class that contain '후원받음'
+        const adLabels = context.querySelectorAll('.ad-label, [class*="ad-label"]');
+        console.log(`🔍 Found ${adLabels.length} ad-label elements`);
+        
+        adLabels.forEach((adLabel, index) => {
+            const text = adLabel.textContent || '';
+            if (text.includes('후원받음') || text.includes('광고') || text.includes('Sponsored')) {
+                console.log('🔍 Found sponsored content:', text);
+                
+                // Find the container and link for this ad
+                const container = findAdContainer(adLabel);
+                const link = findAdLink(container);
+                
+                if (container && link) {
+                    const advertiser = extractAdvertiserFromLink(link);
+                    applyVisualMarker(container, advertiser, `${contextName || 'ad-label'}-${index}`);
+                }
+            }
+        });
+    }
+    
+    function findAdContainer(adLabel) {
+        // Start from ad-label and find the appropriate container
+        let current = adLabel;
+        
+        // Go up to find a good container (article, content-card, etc.)
+        while (current && current.parentElement && current !== document.body) {
+            const parent = current.parentElement;
+            
+            if (isLikelyAdContainer(parent)) {
+                return parent;
+            }
+            
+            // Check for common MSN container patterns
+            const className = parent.className || '';
+            if (className.includes('content-card') || 
+                className.includes('article') || 
+                className.includes('item') ||
+                parent.tagName === 'ARTICLE') {
+                return parent;
+            }
+            
+            current = parent;
+        }
+        
+        return current;
+    }
+    
+    function findAdLink(container) {
+        // Find the main link in the container
+        const links = container.querySelectorAll('a[href]');
+        
+        // Prefer links that are likely to be the main ad link
+        for (const link of links) {
+            const href = link.href;
+            if (href && !href.includes('javascript:') && !href.startsWith('#')) {
+                return link;
+            }
+        }
+        
+        return links[0]; // Fallback to first link
+    }
+    
+    function extractAdvertiserFromLink(link) {
+        try {
+            const url = new URL(link.href);
+            let hostname = url.hostname;
+            
+            // Clean up common prefixes
+            hostname = hostname.replace(/^www\./, '');
+            
+            // Extract main domain for common tracking domains
+            if (hostname.includes('go.microsoft.com') || 
+                hostname.includes('booking.com') ||
+                hostname.includes('microsoftedge.microsoft.com')) {
+                // Try to extract from URL parameters
+                const urlParams = url.searchParams;
+                for (const [key, value] of urlParams) {
+                    if (value.includes('http')) {
+                        try {
+                            const innerUrl = new URL(decodeURIComponent(value));
+                            return innerUrl.hostname.replace(/^www\./, '');
+                        } catch (e) {
+                            // Ignore parsing errors
+                        }
+                    }
+                }
+            }
+            
+            return hostname;
+        } catch (e) {
+            return 'Unknown';
+        }
     }
 
     function scanShadowDOM(context, contextName) {
@@ -489,11 +587,117 @@
     }
 
 
+    // ===== AD COST TRACKING =====
+    function setupAdCostTracking() {
+        // Intercept network requests to capture ad cost data
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            const result = originalFetch.apply(this, args);
+            
+            // Monitor responses for ad cost data
+            result.then(response => {
+                if (response.url.includes('telemetry') || response.url.includes('log')) {
+                    response.clone().text().then(text => {
+                        try {
+                            parseAdCostData(text);
+                        } catch (e) {
+                            // Silent error handling
+                        }
+                    });
+                }
+            }).catch(() => {
+                // Silent error handling
+            });
+            
+            return result;
+        };
+        
+        // Listen for console logs that might contain ad data
+        const originalLog = console.log;
+        console.log = function(...args) {
+            args.forEach(arg => {
+                if (typeof arg === 'string' && arg.includes('AdLabel')) {
+                    try {
+                        parseAdCostData(arg);
+                    } catch (e) {
+                        // Silent error handling
+                    }
+                }
+            });
+            return originalLog.apply(this, args);
+        };
+    }
+    
+    function parseAdCostData(data) {
+        try {
+            // Try to parse JSON data containing ad cost information
+            let jsonData = data;
+            if (typeof data === 'string') {
+                // Extract JSON from string if needed
+                const jsonMatch = data.match(/\\{[^{}]*"co"[^{}]*\\}/);
+                if (jsonMatch) {
+                    jsonData = JSON.parse(jsonMatch[0]);
+                } else {
+                    return;
+                }
+            }
+            
+            if (jsonData && jsonData.ext && jsonData.ext.co) {
+                const cost = jsonData.ext.co;
+                const slotId = jsonData.ext.cid1s || jsonData.ext.slot || 'unknown';
+                
+                console.log(`💰 Ad Cost Detected - Slot: ${slotId}, Cost: ${cost}`);
+                adCostData.set(slotId, cost);
+                
+                // Update existing markers with cost info
+                updateMarkersWithCost();
+            }
+        } catch (e) {
+            // Silent error handling
+        }
+    }
+    
+    function updateMarkersWithCost() {
+        // Find existing ad markers and update them with cost information
+        document.querySelectorAll('[class*="ad-element-"]').forEach(element => {
+            const costInfo = findCostForElement(element);
+            if (costInfo) {
+                updateMarkerWithCost(element, costInfo);
+            }
+        });
+    }
+    
+    function findCostForElement(element) {
+        // Try to match element with cost data
+        for (const [slotId, cost] of adCostData) {
+            // Simple matching - could be improved with better logic
+            return cost;
+        }
+        return null;
+    }
+    
+    function updateMarkerWithCost(element, cost) {
+        // Find the existing style element and update it
+        const uniqueClass = Array.from(element.classList).find(cls => cls.startsWith('ad-element-'));
+        if (uniqueClass) {
+            const styleElement = document.querySelector(`style[data-class="${uniqueClass}"]`);
+            if (styleElement) {
+                const currentContent = styleElement.textContent;
+                const updatedContent = currentContent.replace(
+                    /(content: "AD: [^"]*")/,
+                    `$1 💰${cost}원"`
+                );
+                styleElement.textContent = updatedContent;
+            }
+        }
+    }
+
     // ===== INITIALIZATION =====
     function initialize() {
         console.log('🔍 MSN Ad Detector - Initializing...');
         console.log('🔍 Current URL:', window.location.href);
         console.log('🔍 Document ready state:', document.readyState);
+        setupAdCostTracking();
         createScanButton();
         console.log('🔍 MSN Ad Detector - Initialization complete!');
     }
