@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MSN에서 광고 찾기
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.7
 // @description  Detect and highlight ad providers on MSN Korea
 // @author       sungcheol-dable
 // @match        https://www.msn.com/ko-kr*
@@ -16,7 +16,7 @@
 (function() {
     'use strict';
     
-    console.log('🔍 MSN Ad Detector v1.6 - Script loaded!');
+    console.log('🔍 MSN Ad Detector v1.7 - Script loaded!');
 
     // ===== STATE MANAGEMENT =====
     let isScanning = false;
@@ -288,6 +288,28 @@
         style.textContent = `
             .${uniqueClass} {
                 position: relative !important;
+                border: 3px solid #FF1493 !important;
+                border-radius: 8px !important;
+                background: rgba(255, 20, 147, 0.05) !important;
+            }
+            .${uniqueClass}::before {
+                content: "🚫 광고" !important;
+                position: absolute !important;
+                top: -2px !important;
+                left: -2px !important;
+                color: white !important;
+                background: linear-gradient(45deg, #FF1493, #FF69B4) !important;
+                padding: 4px 8px !important;
+                font-size: 11px !important;
+                font-weight: bold !important;
+                font-family: sans-serif !important;
+                z-index: 999999 !important;
+                pointer-events: none !important;
+                line-height: 1 !important;
+                white-space: nowrap !important;
+                border-radius: 4px !important;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
                 border: 1px solid #FF1493 !important;
             }
             .${uniqueClass}::after {
@@ -296,18 +318,19 @@
                 bottom: -2px !important;
                 right: -2px !important;
                 color: white !important;
-                background-color: #FF149399 !important;
-                padding: 2px 6px !important;
-                font-size: 12px !important;
+                background: linear-gradient(45deg, #FF6B35, #F7931E) !important;
+                padding: 3px 6px !important;
+                font-size: 10px !important;
                 font-weight: bold !important;
                 font-family: sans-serif !important;
                 z-index: 999999 !important;
                 pointer-events: none !important;
                 line-height: 1 !important;
                 white-space: nowrap !important;
-                border-radius: 3px 0 0 0 !important;
+                border-radius: 3px !important;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.3) !important;
-                text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+                border: 1px solid #FF6B35 !important;
             }
         `;
         return style;
@@ -325,8 +348,58 @@
         
         const provider = detectAdProvider(url);
         if (provider) {
-            applyVisualMarker(element, provider, baseIndex);
+            // Find the best container to mark
+            const containerToMark = findBestContainer(element);
+            applyVisualMarker(containerToMark, provider, baseIndex);
         }
+    }
+    
+    function findBestContainer(element) {
+        // Start from the current element and go up the DOM tree
+        let current = element;
+        let bestContainer = element;
+        
+        // Look for parent containers that are likely ad containers
+        while (current && current.parentElement && current !== document.body) {
+            const parent = current.parentElement;
+            
+            // Check if parent looks like an ad container
+            if (isLikelyAdContainer(parent)) {
+                bestContainer = parent;
+            }
+            
+            // Don't go too far up
+            if (parent.tagName === 'BODY' || parent.tagName === 'HTML') {
+                break;
+            }
+            
+            current = parent;
+        }
+        
+        return bestContainer;
+    }
+    
+    function isLikelyAdContainer(element) {
+        const rect = element.getBoundingClientRect();
+        
+        // Skip if too small or too large
+        if (rect.width < 100 || rect.height < 100 || 
+            rect.width > window.innerWidth * 0.8 || 
+            rect.height > window.innerHeight * 0.8) {
+            return false;
+        }
+        
+        const className = element.className || '';
+        const id = element.id || '';
+        
+        // Check for ad-related class names or IDs
+        const adIndicators = ['ad', 'banner', 'promo', 'sponsored', 'content-card', 'article', 'item'];
+        const hasAdIndicator = adIndicators.some(indicator => 
+            className.toLowerCase().includes(indicator) || 
+            id.toLowerCase().includes(indicator)
+        );
+        
+        return hasAdIndicator;
     }
 
     // ===== DOM SCANNING =====
